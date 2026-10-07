@@ -1,0 +1,12 @@
+let editId=null;
+const $=id=>document.getElementById(id);
+function toast(msg){$('toast').textContent=msg;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2200)}
+function openModal(){editId=null;$('modalTitle').textContent='Add Product';$('form').reset();$('pid').disabled=false;$('modal').style.display='flex'}
+function closeModal(){$('modal').style.display='none'}
+async function loadStats(){const r=await fetch('/api/stats'),s=await r.json();$('products').textContent=s.products;$('units').textContent=s.units;$('value').textContent='₹'+Number(s.value).toLocaleString('en-IN',{maximumFractionDigits:2});$('low').textContent=s.low_stock}
+async function loadProducts(){const q=encodeURIComponent($('search').value);const r=await fetch('/api/products?q='+q),items=await r.json();$('countText').textContent=items.length+' product'+(items.length===1?'':'s');$('empty').style.display=items.length?'none':'block';$('tbody').innerHTML=items.map(p=>`<tr><td><b>${esc(p.product_id)}</b></td><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${p.quantity}</td><td>₹${Number(p.price).toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td><span class="pill ${p.quantity<=5?'low':''}">${p.quantity<=5?'Low Stock':'In Stock'}</span></td><td class="actions"><button onclick='editProduct(${JSON.stringify(p)})'>Edit</button><button class="del" onclick="deleteProduct(${p.id})">Delete</button></td></tr>`).join('')}
+function esc(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function editProduct(p){editId=p.id;$('modalTitle').textContent='Update Product';$('pid').value=p.product_id;$('pid').disabled=true;$('name').value=p.name;$('category').value=p.category;$('quantity').value=p.quantity;$('price').value=p.price;$('modal').style.display='flex'}
+$('form').onsubmit=async e=>{e.preventDefault();const data={product_id:$('pid').value,name:$('name').value,category:$('category').value,quantity:$('quantity').value,price:$('price').value};const r=await fetch(editId?'/api/products/'+editId:'/api/products',{method:editId?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const out=await r.json();if(!r.ok){toast(out.error);return}toast(out.message);closeModal();loadProducts();loadStats()}
+async function deleteProduct(id){if(!confirm('Delete this product?'))return;const r=await fetch('/api/products/'+id,{method:'DELETE'}),out=await r.json();toast(out.message||out.error);loadProducts();loadStats()}
+loadProducts();loadStats();
